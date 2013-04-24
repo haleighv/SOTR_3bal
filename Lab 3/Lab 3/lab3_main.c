@@ -19,6 +19,7 @@
 *
 * Revisions:
 *   4/18/2013 HAV Original File Created
+*   4/23/2013 HAV MAC changed clock frequency to 2MHz
 *
 **********************************************************/
 //-------------------Library Includes--------------------//
@@ -31,7 +32,7 @@
 #include "semphr.h"
 
 //----------------------Definitions----------------------//
-#define F_CPU 16000000
+#define F_CPU 2000000
 #define DELAY_MS_1HZ 500
 #define DELAY_MS_2HZ 250
 #define DELAY_MS_4HZ 125
@@ -71,8 +72,9 @@ LED led2 = {
 	.freq_delay = DELAY_MS_4HZ
 };
 
-
+//Create Binary Semaphore for button interrupt handler
 xSemaphoreHandle xBinarySemaphore_buttonPress;
+//Create Binary Semaphore for timer interrupt handler
 xSemaphoreHandle xBinarySemaphore_timer;
 
 //-------------------Main Function-----------------------//
@@ -80,6 +82,7 @@ int main( void )
 {  	
     // Function initializing PORTA as an output and setting LEDs low, set PORTE as input
 	vIO_init(); 
+	//Function initializing timer to to generate interrupts at 7Hz
 	initialize_timer2();
 	initialize_button_read();
 
@@ -105,7 +108,7 @@ int main( void )
 *
 * Description: This task function toggles a specified
 *              LED at a specified frequency defined in
-*              the array pointed to by 'pvLED_blink_specs'
+*              the array pointed to by 'target_led'
 *
 * param a: void *led: pointer to an LED structure. This
 *          contains the information of which pin port the
@@ -133,12 +136,29 @@ void vTaskFunction_LEDToggle(void *target_led)
 	}
 }
 
+/*-----------------------------------------------------
+* Function: vTaskFunction_buttonHandler
+*
+* Description: This task function is a handler for the
+*              button press interrupt triggered by SW7.
+*              It blocks for a millisecond period 
+*			   determined by DEBOUNCE_DELAY, then checks
+*			   whether the button is asserted or not
+*			   and updates OCR2A, and toggles LED6 
+*			   accordingly and updates LEDs run frequency.
+*			   Re-enables button interrupts once done. 
+*
+* param a: void *pvNada: dummy variable
+*
+* return: void
+*--------------------------------------------------------*/
 void vTaskFunction_buttonHandler(void *pvNada)
 {	
 	for(;;)
 	{
 		xSemaphoreTake( xBinarySemaphore_buttonPress, portMAX_DELAY );
-		vTaskDelay(DEBOUNCE_DELAY / portTICK_RATE_MS); // Block task for debounce
+		// Block task for debounce of button
+		vTaskDelay(DEBOUNCE_DELAY / portTICK_RATE_MS); 
 		if(PINE & 0b10000000)// check if SW7 is asserted (active low)
 		{
 			PORTA |= (1 << LED6); //Turn LED6 off
@@ -156,13 +176,27 @@ void vTaskFunction_buttonHandler(void *pvNada)
 	
 }
 
+/*-----------------------------------------------------
+* Function: vTaskFunction_timerHandler
+*
+* Description: This task function is a handler for the
+*              timer2 interrupt.
+*              It toggles LED7 and clears timer2 each 
+*			   time it is given a semaphor from its
+*			   respective ISR.
+*
+* param a: void *pvNada: dummy variable
+*
+* return: void
+*--------------------------------------------------------*/
 void vTaskFunction_timerHandler(void *pvNada)
 {
 	for(;;)
 	{
+		// Block until the timer semaphore is given to handler
 		xSemaphoreTake( xBinarySemaphore_timer, portMAX_DELAY );
 		PORTA ^= (1 << LED7);//Toggle LED7
-		TCNT2 = 0;
+		TCNT2 = 0;// reset timer2 count
 	}
 }
 
@@ -181,21 +215,20 @@ ISR(TIMER2_COMPA_vect)
 	xHigherPriorityTaskWoken = pdFALSE;
 	/* 'Give' the semaphore to unblock the task. */
 	xSemaphoreGiveFromISR( xBinarySemaphore_timer, &xHigherPriorityTaskWoken );
+	// perform context switch if handler is of higher priority
 	if( xHigherPriorityTaskWoken == pdTRUE )
 	{
 		vPortYield();
 	}
 }
 
-/** This Interrupt Service Routing checks in SW7 is pressed, then updates the global "buttons"
- *  to be '1' if SW7 is asserted, and '0' if SW7 is not asserted. 
- */
+
 /*-----------------------------------------------------
 * Function: ISR for SW7 press
 *
 * Description: This Interrupt Service Routine checks if
 *              SW7 is pressed, then toggles LED7 and
-*              clears timer2's count.
+*              clears timer2's count in its handler.
 *
 * param a: INT7_vect: vector generated when
 *		   a logic level change on pin E7 occurs
@@ -209,6 +242,7 @@ ISR(INT7_vect)
 	xHigherPriorityTaskWoken = pdFALSE;
 	/* 'Give' the semaphore to unblock the task. */
 	xSemaphoreGiveFromISR( xBinarySemaphore_buttonPress, &xHigherPriorityTaskWoken );
+	// perform context switch if handler is higher priority
 	if( xHigherPriorityTaskWoken == pdTRUE )
 	{
 		vPortYield();

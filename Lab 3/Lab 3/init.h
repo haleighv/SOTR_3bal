@@ -8,6 +8,7 @@
 *
 * Revisions:
 *   4/18/2013 HAV Original File Created
+*   4/23/2013 HAV MAC Changed defines values for 7Hz and 14Hz
 *
 **********************************************************/
 #ifndef INIT_H_
@@ -16,8 +17,9 @@
 //-------------------Library Includes--------------------//
 #include <avr/io.h>
 
-#define TIMER2_7Hz 119 //Value for OCR0A corresponding to 65Hz
-#define TIMER2_14Hz 12500 //Value for OCR1A corresponding to 10Hz
+//OCR_value = clk_freq / prescaler / desired_frequency / #clk_edges
+#define TIMER2_7Hz 138 //Value for OCR0A corresponding to 65Hz
+#define TIMER2_14Hz 68 //Value for OCR1A corresponding to 10Hz
 
 //-----------------Function Prototypes-------------------//
 //Function used to configure IOs

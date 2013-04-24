@@ -12,6 +12,7 @@
 *
 * Revisions:
 *   4/18/2013 HAV Original File Created
+*   4/23/2013 HAV Changed timer2 to have prescaler of 1024
 *
 **********************************************************/
 //-------------------Library Includes--------------------//
@@ -39,10 +40,7 @@ void vIO_init(void)
 	PORTA = 0xFF;
 }
 
-/** This function Initializes timers to generate interrupts to control LED blinking. Timer0
- *  is configured to generate interrupts causing LED2 to blink at 65Hz. Timer1 is configured
- *  to generate interrupts causing LED6 to blink at 65Hz.
- */
+
 /*-----------------------------------------------------
 * Function: initialize_timer2
 *
@@ -57,9 +55,9 @@ void vIO_init(void)
 void initialize_timer2()
 {		
 	TIMSK2 = (1 << OCIE2A);//Set interrupt mask for OC2A
-	TCCR2A = ((1 << COM2A1) | (1 << COM2A0));//Set OC2A on Compare Match
-	TCCR2B = ((1 << WGM22)  | (1 << CS21) | (1 << CS20));//Set timer2 to CTC, prescaler of 8
-	OCR2A  = TIMER2_7Hz; 
+	TCCR2A = ((1 << COM2A1) | (1 << COM2A0)|(1<<WGM21));//Set OC2A on Compare Match
+	TCCR2B = ((1 << CS22) |(1 << CS21) | (1 << CS20));//Set timer2 to CTC, prescaler of 1024
+	OCR2A  = TIMER2_14Hz; //initailize ocra2 to value corresponding to 14Hz interrupt generation
 }
 
 
